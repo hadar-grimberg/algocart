@@ -47,6 +47,16 @@ def sum_missing_values(train,test):
     print(f"There are {train.Survived.isnull().sum()} missing labels")
     return pd.concat([train_missing, test_missing], axis=1).sort_values(by=['Train Total'])
 
+def shared_ticket(dataset):
+    ticket_g = dataset.groupby('Ticket')
+    dataset["shared_ticket"] = 0
+    for name, group in ticket_g:
+        if (len(ticket_g.get_group(name)) > 1):
+            dataset.loc[ticket_g.get_group(name).index.to_list(), "shared_ticket"] = 1
+    dataset["shared_ticket"] = dataset["shared_ticket"].astype('category')
+    dataset.drop("Ticket", axis=1, inplace=True)
+    return dataset
+
 
 def initial_visualiztion(dataset):
     # Explore the dataset to find patterns for those who survived and those whom didn't
@@ -65,12 +75,7 @@ def initial_visualiztion(dataset):
     print(f"{dataset['Ticket'].nunique()} of {dataset['Ticket'].count()}  ticket numbers are unique")
 
     # Create new feature that indicates whether the passenger had a shared ticket or no, it will be used for furfur analysis
-    ticket_g = dataset.groupby('Ticket')
-    dataset["shared_ticket"]=0
-    for name, group in ticket_g:
-        if (len(ticket_g.get_group(name)) > 1):
-            dataset.loc[ticket_g.get_group(name).index.to_list(), "shared_ticket"] = 1
-    dataset["shared_ticket"] = dataset["shared_ticket"].astype('category')
+    dataset = shared_ticket(dataset)
 
     # Numerical and categorical feature examination:
     numcat_feat = dataset.select_dtypes(exclude=[object]).columns.to_list()
@@ -180,35 +185,70 @@ def normality_check(data):
 def fill_missing_by_mode(train_,test_,features):
     train=train_.copy()
     test=test_.copy()
-    # fill missing data by the mode of other passengers with same sex, class and simillar age
+    # fill missing data by the mode of other passengers with same sex, class and similar age (if age existed)
     for f in features:
         train_null_idx = train[train[f].isnull()].index.to_list()
         test_null_idx = test[test[f].isnull()].index.to_list()
         if train_null_idx:
-            train.loc[train_null_idx, f] = train.loc[train_null_idx, :].apply(
-                lambda row: train[f][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass) &
-                (row.Age - 10 >= train['Age']) & (train['Age'] <= row.Age + 10)].mode(), axis=1).values
+            train.loc[train_null_idx, f] = train.loc[train_null_idx, :].apply(lambda row:
+            (train[f][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass) &
+            (row.Age - 10 >= train['Age']) & (train['Age'] <= row.Age + 10)].mode())
+            if not pd.isna(row.Age) else train[f][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass)].mode(), axis=1).values
+            print(f"{len(train_null_idx)} {f} missing values filled with mode within the train set")
         if test_null_idx:
-            test.loc[test_null_idx, f] = test.loc[test_null_idx, :].apply(
-                lambda row: train[f][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass) &
-                                     (row.Age - 10 >= train['Age']) & (train['Age'] <= row.Age + 10)].mode(), axis=1).values
+            test.loc[test_null_idx, f] = test.loc[test_null_idx, :].apply(lambda row:
+            (train[f][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass) &
+            (row.Age - 10 >= train['Age']) & (train['Age'] <= row.Age + 10)].mode())
+            if not pd.isna(row.Age) else train[f][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass)].mode(), axis=1).values
+            print(f"{len(test_null_idx)} {f} missing values filled with mode within the test set")
     return train,test
 
-def fill_missing_by_mean(train_,test_,features):
+def fill_missing_by_median(train_,test_,features):
     train=train_.copy()
     test=test_.copy()
-    # fill missing data by the mean of other passengers with same sex, class and simillar age
+    # fill missing data by the median of other passengers with same sex, class and similar age (if age existed)
     for f in features:
         train_null_idx = train[train[f].isnull()].index.to_list()
         test_null_idx = test[test[f].isnull()].index.to_list()
         if train_null_idx:
-            train.loc[train_null_idx, f] = train.loc[train_null_idx, :].apply(
-                lambda row: train[f][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass) &
-                (row.Age - 10 >= train['Age']) & (train['Age'] <= row.Age + 10)].mean(), axis=1).values
+            train.loc[train_null_idx, f] = train.loc[train_null_idx, :].apply(lambda row:
+            (train[f][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass) &
+            (row.Age - 10 >= train['Age']) & (train['Age'] <= row.Age + 10)].median())
+            if not pd.isna(row.Age) else train[f][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass)].median(), axis=1).values
+            print(f"{len(train_null_idx)} {f} missing values filled with median within the train set")
         if test_null_idx:
-            test.loc[test_null_idx, f] = test.loc[test_null_idx, :].apply(
-                lambda row: train[f][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass) &
-                                     (row.Age - 10 >= train['Age']) & (train['Age'] <= row.Age + 10)].mean(), axis=1).values
+            test.loc[test_null_idx, f] = test.loc[test_null_idx, :].apply(lambda row:
+            (train[f][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass) &
+            (row.Age - 10 >= train['Age']) & (train['Age'] <= row.Age + 10)].median())
+            if not pd.isna(row.Age) else train[f][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass)].median(), axis=1).values
+            print(f"{len(test_null_idx)} {f} missing values filled with median within the test set")
+    return train,test
+
+def fill_missing_age_by_median(train_,test_):
+    train=train_.copy()
+    test=test_.copy()
+    train["title"] = train['Name'].str.split(", ", expand=True)[1].str.split(".", expand=True)[0]
+    test["title"] = test['Name'].str.split(", ", expand=True)[1].str.split(".", expand=True)[0]
+    titles = train[["title", "Survived"]].groupby("title").count()[train[["title", "Survived"]].groupby("title").count().sort_values(
+        "Survived", ascending=False) > 30].dropna().index.to_list()
+
+    # fill missing data by the median of other passengers with same sex, class and similar title (if title existed)
+    train_null_idx = train[train["Age"].isnull()].index.to_list()
+    test_null_idx = test[test["Age"].isnull()].index.to_list()
+    if train_null_idx:
+        train.loc[train_null_idx, "Age"] = train.loc[train_null_idx, :].apply(lambda row:
+        (train["Age"][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass) &
+        (row.title == train['title'])].median()) if row.title in titles
+        else train["Age"][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass)].median(), axis=1).values
+        print(f"{len(train_null_idx)} age missing values filled with median within the train set")
+    if test_null_idx:
+        test.loc[test_null_idx, "Age"] = test.loc[test_null_idx, :].apply(lambda row:
+        (train["Age"][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass) &
+        (row.title == train['title'])].median()) if row.title in titles
+        else train["Age"][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass)].median(), axis=1).values
+        print(f"{len(test_null_idx)} age missing values filled with median within the test set")
+    train.drop("title", inplace=True, axis=1)
+    test.drop("title", inplace=True, axis=1)
     return train,test
 
 # Outlier detection - visualization
@@ -269,6 +309,8 @@ if __name__ == '__main__':
     # in order to solve our goal. The folowing function enable to examine and compare
     # distributions of survivors and non-survivors by visualization
     train = initial_visualiztion(train)
+    # Add the new shared_ticket feature to the testset as well
+    test = shared_ticket(test)
 
     ## Handling the missing data
     # Accurate assessment of the missing data
@@ -277,15 +319,22 @@ if __name__ == '__main__':
     and Cabin feature has about 690 nulls, there ar no other nulls in the train set.
     The Name contains titles that indicate a certain age group. It might be use to fill the missing data"""
 
-    # handle with missing categorical data where very few values are missing
-    cat_few=missing_vals[(((missing_vals['Test percent']<0.1)&(missing_vals['Test percent']>0)) | ((missing_vals['Train percent']<0.1)&(missing_vals['Train percent']>0)))&(train.dtypes=="category")].index.to_list()
+    # handle with missing categorical data where less than 25% of the values are missing
+    cat_few=missing_vals[(((missing_vals['Test percent']<0.25)&(missing_vals['Test percent']>0)) | ((missing_vals['Train percent']<0.25)&(missing_vals['Train percent']>0)))&(train.dtypes=="category")].index.to_list()
     train, test = fill_missing_by_mode(train,test,cat_few)
 
-    # handle with missing numeric data where very few values are missing
-    numeric_features = [col for col in train.select_dtypes(include=np.number).columns.tolist() if col not in ['Survived']]
-    num_few = missing_vals.loc[numeric_features,:][(((missing_vals['Test percent'] < 0.1) & (missing_vals['Test percent'] > 0)) | (
-                (missing_vals['Train percent'] < 0.1) & (missing_vals['Train percent'] > 0)))].index.to_list()
-    train, test = fill_missing_by_mean(train, test, num_few)
+    # handle with missing numeric data where less than 25% of the values are missing
+    numeric_features = [col for col in train.select_dtypes(include=np.number).columns.tolist() if col not in ['Survived', 'Age']]
+    num_few = missing_vals.loc[numeric_features,:][(((missing_vals['Test percent'] < 0.25) & (missing_vals['Test percent'] > 0)) | (
+                (missing_vals['Train percent'] < 0.25) & (missing_vals['Train percent'] > 0)))].index.to_list()
+    train, test = fill_missing_by_median(train, test, num_few)
+    # handle age missing data
+    train, test = fill_missing_age_by_median(train,test)
+
+    # drop features with 25% or more missing values
+    train.drop(missing_vals[missing_vals['Train percent']>=0.25].index.to_list(), axis=1, inplace=True)
+    test.drop(missing_vals[missing_vals['Test percent']>=0.25].index.to_list(), axis=1, inplace=True)
+
 
     # Join train and test datasets in order to clean both datasets at once and to obtain
     # the same number of features during categorical conversion
