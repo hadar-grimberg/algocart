@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy.stats import normaltest
 import warnings
 warnings.filterwarnings(action="ignore")
 
@@ -25,7 +26,6 @@ def load_dataset(path,name):
         data.Survived = data.Survived.astype('category')
     data.Sex = data.Sex.astype('category')
     data.Embarked = data.Embarked.astype('category')
-    data.Pclass = pd.Categorical(data.Pclass, categories=[3,2,1], ordered=True)
     # explore the columns and the head of the data
     print(f"The head 5 rows of {name} data:\n", data.head(5))
     print (data.info())
@@ -72,9 +72,9 @@ def initial_visualiztion(dataset):
     dataset["shared_ticket"] = dataset["shared_ticket"].astype('category')
 
     # Numerical and categorical feature examination:
-    num_feat = dataset.select_dtypes(exclude=[object]).columns.to_list()
-    num_feat = [feature for feature in num_feat if feature!="Survived"]
-    visualiztion_dashboard(dataset, num_feat, "Survived", survived, died)
+    numcat_feat = dataset.select_dtypes(exclude=[object]).columns.to_list()
+    numcat_feat.remove('Survived')
+    visualiztion_dashboard(dataset, numcat_feat, "Survived", survived, died)
 
     """Conclusions:
     Age: It's seem that young children (ages 0-10) had a better survival rate.
@@ -89,12 +89,29 @@ def initial_visualiztion(dataset):
             Embarking at "C" resulted in a higher survival rate than embarking at "Q" or "S".
     shared_ticket: Having a shared ticket increases better survival odds """
 
+    # Check for normality
+    numeric_features = dataset.select_dtypes(include=[np.number]).columns.to_list()
+    numeric_features.remove('Survived')
+    normal_features = normality_check(dataset[numeric_features])
+
+    # Pearson correlations for normal distributed features
+    if normal_features:
+        plt.figure(figsize=(14, 12))
+        sns.heatmap(dataset[normal_features].corr(), square=True, annot=True,  fmt = ".2f", cmap = "coolwarm", vmin=-1, vmax=1)
+        plt.title("Pearson Correlations")
+        plt.show()
+    # Spearman correlation for other  distributed features
     plt.figure(figsize=(14, 12))
-    sns.heatmap(dataset.corr(), square=True, annot=True)
+    sns.heatmap(dataset.drop(normal_features, axis=1).corr(method="spearman"), square=True, annot=True,  fmt = ".2f", cmap = "coolwarm", vmin=-1, vmax=1)
+    plt.title("Spearman Correlations")
+    plt.show()
+
+
     """Conclusions:
-    Pclass is somewhat correlated with Fare (higher class tickets are more expensive and lower
-    class tickets are cheaper). SibSp and Parch are weakly correlated (large families would have
-    high values for both). Pclass significaly correlates Survived"""
+    Pclass is highly reverse correlated with Fare and reverse moderately correlated with Age 
+    (higher class tickets are more expensive, and attributed to higher age).
+    SibSp, Parch and Fare are moderately correlated (large families would have high values for both and higher fare).
+    Survived is moderately correlates with Fare and with reversed Pcalss (the higher the class and the fare, it is more likely to survive)"""
 
     return dataset
 
@@ -125,6 +142,7 @@ def visualiztion_dashboard(dataset,features,labels,pos_labels_data, neg_labels_d
             sns.barplot(x=feature, y=labels, data=dataset)
         sp+=1
     plt.subplots_adjust(top=0.92, bottom=0.08, left=0.10, right=0.95, hspace=0.25, wspace=0.35)
+    plt.show()
 
 
 def cross_sex_age(dataset):
@@ -148,6 +166,15 @@ def cross_sex_age(dataset):
     whereas the probability of survival for men in that age ranfe is lower. The difference
     between women and men in these ages might be a better feature than Sex and Age by themselves.
     Boys have better survival chances than men, whereas girls have similar chances as women have."""
+
+# Check whether each feature is normally distributed
+def normality_check(data):
+    normal_features=[]
+    for col in data.columns:
+        s, p = normaltest(data[col][data[col].notnull()])
+        if p>=0.05:
+            normal_features.append(col)
+    return normal_features
 
 # Outlier detection - visualization
 def Box_plots(df,col):
@@ -208,7 +235,8 @@ if __name__ == '__main__':
     # distributions of survivors and non-survivors by visualization
     train = initial_visualiztion(train)
 
-    # handling the missing data
+    ## Handling the missing data
+    # Accurate assessment of the missing data
     missing_vals = sum_missing_values(train,test)
     """Age feature has about 180 nulls
     and Cabin feature has about 690 nulls, there ar no other nulls in the train set.
