@@ -37,7 +37,8 @@ def sum_missing_values(train,test):
     # Calculate the total missing values and the percentage of each feature for a table
     def calc_missing_table(df,set):
         total = df.isnull().sum()
-        perc = (df.isnull().sum()/len(df)*100).map('{:,.2f}%'.format)
+        perc = (df.isnull().sum()/len(df))
+        # perc = (df.isnull().sum()/len(df)*100).map('{:,.2f}%'.format)
         return pd.concat([total, perc], axis=1, keys=[f'{set} Total',f'{set} percent'])
     # build missing data tables for each dataset's features
     train_missing = calc_missing_table(train.loc[:, train.columns != 'Survived'],"Train")
@@ -176,6 +177,40 @@ def normality_check(data):
             normal_features.append(col)
     return normal_features
 
+def fill_missing_by_mode(train_,test_,features):
+    train=train_.copy()
+    test=test_.copy()
+    # fill missing data by the mode of other passengers with same sex, class and simillar age
+    for f in features:
+        train_null_idx = train[train[f].isnull()].index.to_list()
+        test_null_idx = test[test[f].isnull()].index.to_list()
+        if train_null_idx:
+            train.loc[train_null_idx, f] = train.loc[train_null_idx, :].apply(
+                lambda row: train[f][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass) &
+                (row.Age - 10 >= train['Age']) & (train['Age'] <= row.Age + 10)].mode(), axis=1).values
+        if test_null_idx:
+            test.loc[test_null_idx, f] = test.loc[test_null_idx, :].apply(
+                lambda row: train[f][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass) &
+                                     (row.Age - 10 >= train['Age']) & (train['Age'] <= row.Age + 10)].mode(), axis=1).values
+    return train,test
+
+def fill_missing_by_mean(train_,test_,features):
+    train=train_.copy()
+    test=test_.copy()
+    # fill missing data by the mean of other passengers with same sex, class and simillar age
+    for f in features:
+        train_null_idx = train[train[f].isnull()].index.to_list()
+        test_null_idx = test[test[f].isnull()].index.to_list()
+        if train_null_idx:
+            train.loc[train_null_idx, f] = train.loc[train_null_idx, :].apply(
+                lambda row: train[f][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass) &
+                (row.Age - 10 >= train['Age']) & (train['Age'] <= row.Age + 10)].mean(), axis=1).values
+        if test_null_idx:
+            test.loc[test_null_idx, f] = test.loc[test_null_idx, :].apply(
+                lambda row: train[f][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass) &
+                                     (row.Age - 10 >= train['Age']) & (train['Age'] <= row.Age + 10)].mean(), axis=1).values
+    return train,test
+
 # Outlier detection - visualization
 def Box_plots(df,col):
     plt.figure(figsize=(10, 4))
@@ -242,6 +277,15 @@ if __name__ == '__main__':
     and Cabin feature has about 690 nulls, there ar no other nulls in the train set.
     The Name contains titles that indicate a certain age group. It might be use to fill the missing data"""
 
+    # handle with missing categorical data where very few values are missing
+    cat_few=missing_vals[(((missing_vals['Test percent']<0.1)&(missing_vals['Test percent']>0)) | ((missing_vals['Train percent']<0.1)&(missing_vals['Train percent']>0)))&(train.dtypes=="category")].index.to_list()
+    train, test = fill_missing_by_mode(train,test,cat_few)
+
+    # handle with missing numeric data where very few values are missing
+    numeric_features = [col for col in train.select_dtypes(include=np.number).columns.tolist() if col not in ['Survived']]
+    num_few = missing_vals.loc[numeric_features,:][(((missing_vals['Test percent'] < 0.1) & (missing_vals['Test percent'] > 0)) | (
+                (missing_vals['Train percent'] < 0.1) & (missing_vals['Train percent'] > 0)))].index.to_list()
+    train, test = fill_missing_by_mean(train, test, num_few)
 
     # Join train and test datasets in order to clean both datasets at once and to obtain
     # the same number of features during categorical conversion
@@ -249,5 +293,5 @@ if __name__ == '__main__':
 
 
     # detect outliers for numerical features
-    numeric_features=[col for col in dataset.select_dtypes(include=np.number).columns.tolist() if col not in ['PassengerId', 'Survived',]]
+
     # Outliers_to_drop = detect_outliers(train[numeric_features])
