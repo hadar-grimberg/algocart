@@ -136,13 +136,15 @@ def visualiztion_dashboard(dataset,features,labels,pos_labels_data, neg_labels_d
                 # this is a very sided skew, the mean is influenced by small
                 # portion of extreme values. Hence, Logarithmic transformation is needed
                 plt.subplot(sp)
-                sns.distplot(np.log10(pos_labels_data[feature].dropna().values + 1), kde=False, color="green")
-                sns.distplot(np.log10(neg_labels_data[feature].dropna().values + 1), kde=False, color="red", axlabel=feature)
+                sns.distplot(np.log10(pos_labels_data[feature].dropna().values + 1), kde=False, color="green", label='Survived')
+                sns.distplot(np.log10(neg_labels_data[feature].dropna().values + 1), kde=False, color="red", axlabel=feature, label='Not Survived')
+                plt.legend()
             else:
                 plt.subplot(sp)
-                sns.distplot(pos_labels_data[feature].dropna().values, bins=range(int(dataset[feature].min()), int(dataset[feature].max()), 1), kde=False, color="green")
+                sns.distplot(pos_labels_data[feature].dropna().values, bins=range(int(dataset[feature].min()), int(dataset[feature].max()), 1), kde=False, color="green", label='Survived')
                 sns.distplot(neg_labels_data[feature].dropna().values, bins=range(int(dataset[feature].min()), int(dataset[feature].max()), 1), kde=False, color="red",
-                     axlabel=feature)
+                     axlabel=feature, label='Not Survived')
+                plt.legend()
         else:
             plt.subplot(sp)
             sns.barplot(x=feature, y=labels, data=dataset)
