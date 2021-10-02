@@ -249,8 +249,8 @@ def fill_missing_age_by_median(train_,test_):
         (row.title == train['title'])].median()) if row.title in titles
         else train["Age"][(train['Sex'] == row.Sex) & (train['Pclass'] == row.Pclass)].median(), axis=1).values
         print(f"{len(test_null_idx)} age missing values filled with median within the test set")
-    train.drop("title", inplace=True, axis=1)
-    test.drop("title", inplace=True, axis=1)
+    train.drop(["Name", "title"], inplace=True, axis=1)
+    test.drop(["Name", "title"], inplace=True, axis=1)
     return train,test
 
 # Outlier detection - visualization
