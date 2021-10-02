@@ -345,14 +345,14 @@ def detect_outliers(df):
 
 if __name__ == '__main__':
     # Load train data and preliminary examination
-    train, train_orig = load_dataset(r"..\data\train.csv","train")
+    train, train_orig = load_dataset(r"..\data\raw\train.csv","train")
     """from first examination of the train set, one may see that there are many nulls within Age and Cabin.
     The mean age is 28 and 50% of the passengers are between 20 to 38 years old. At least 75% of the passengers
     hadn't parents or children on board and at least 50% of the passengers hadn't siblings/spouse on board.
     The mean fare was 32.2 which is ~6% of the maximum fare, less than 25% paid fare of above the average."""
 
     # Load test data and preliminary examination
-    test, test_orig = load_dataset(r"..\data\test.csv","test")
+    test, test_orig = load_dataset(r"..\data\raw\test.csv","test")
     """from first examination of the test set, one may see that there are many nulls within Age and Cabin as seen
      in train set. Mean age is 30.27, a little bit higher than in train set. At least 75% of the passengers
     hadn't parents or children on board and at least 50% of the passengers hadn't siblings/spouse on board, like 
@@ -405,6 +405,13 @@ if __name__ == '__main__':
     y = train["Survived"]
     X = train.drop(labels=["Survived"], axis=1)
     x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.25, random_state=0)
+
+    #save processed files:
+    # x_train.to_excel(r"..\data\processed\x_train.xlsx")
+    # x_val.to_excel(r"..\data\processed\x_val.xlsx")
+    # y_train.to_excel(r"..\data\processed\y_train.xlsx")
+    # y_val.to_excel(r"..\data\processed\y_val.xlsx")
+    # test.to_excel(r"..\data\processed\test.xlsx")
 
 
     # detect outliers for numerical features
