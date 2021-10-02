@@ -21,6 +21,7 @@ pd.options.display.float_format = '{:,.2f}'.format
 def load_dataset(path,name):
     # load data and make the PassengerId as the index of the DataFrame
     data=pd.read_csv(path, index_col=0)
+    data_orig = data.copy()
     # convert the label, sex & embarked to categorical and Pclass to ordered categorical
     if name == "train":
         data.Survived = data.Survived.astype('category')
@@ -30,7 +31,7 @@ def load_dataset(path,name):
     print(f"The head 5 rows of {name} data:\n", data.head(5))
     print (data.info())
     print(data.describe().round(decimals=2))
-    return data
+    return data, data_orig
 
 
 def sum_missing_values(train,test):
@@ -50,12 +51,27 @@ def sum_missing_values(train,test):
 def shared_ticket(dataset):
     ticket_g = dataset.groupby('Ticket')
     dataset["shared_ticket"] = 0
+    dataset["shared_with"] = 1
     for name, group in ticket_g:
         if (len(ticket_g.get_group(name)) > 1):
             dataset.loc[ticket_g.get_group(name).index.to_list(), "shared_ticket"] = 1
+            dataset.loc[ticket_g.get_group(name).index.to_list(), "shared_with"] = len(ticket_g.get_group(name))
     dataset["shared_ticket"] = dataset["shared_ticket"].astype('category')
     dataset.drop("Ticket", axis=1, inplace=True)
     return dataset
+
+def update_price(dataset, training=True):
+    dataset["price"] = dataset.Fare / dataset.shared_with
+    # Check if it is reasonable to create this feature
+    if training:
+        print(dataset[["price", "Fare"]][dataset.Pclass == 3].describe())
+        print(dataset[["price", "Fare"]][dataset.Pclass == 2].describe())
+        print(dataset[["price", "Fare"]][dataset.Pclass == 1].describe())
+        """Distribution looks more reasonable after dividing the fare with the number of
+         passengers which shared the same ticket"""
+    dataset.drop(["shared_with","Fare"],axis=1,inplace=True)
+    return dataset
+
 
 
 def initial_visualiztion(dataset):
@@ -118,9 +134,7 @@ def initial_visualiztion(dataset):
     (higher class tickets are more expensive, and attributed to higher age).
     SibSp, Parch and Fare are moderately correlated (large families would have high values for both and higher fare).
     Survived is moderately correlates with Fare and with reversed Pcalss (the higher the class and the fare, it is more likely to survive)"""
-
     return dataset
-
 
 def visualiztion_dashboard(dataset,features,labels,pos_labels_data, neg_labels_data):
     # Create summary visualiztion dashboard
@@ -253,7 +267,29 @@ def fill_missing_age_by_median(train_,test_):
     test.drop(["Name", "title"], inplace=True, axis=1)
     return train,test
 
-# Outlier detection - visualization
+def family_size(dataset, training=True):
+    # Create a family size descriptor from SibSp and Parch under the assumption that large families
+    # had more difficulties to evacuate, looking for their sibilings / parents during the evacuation.
+    dataset["FamilyS"] = dataset.SibSp + dataset.Parch
+
+    if training:
+        # Checking the assumption:
+        fsg = sns.factorplot(x="FamilyS", y="Survived", data=dataset)
+        fsg = fsg.set_ylabels("Survival Probability")
+        """The family size seems to have impact on the survival probability, which is worst for large families."""
+
+    # Create new feature of family size
+    dataset['FamilyS_g'] = pd.cut(x=dataset['FamilyS'], bins=[-0.1, 0.9, 1, 3, dataset.FamilyS.max()],
+                                  labels=['Single', 'OneFM', 'SmallF', 'MedF'])
+    if training:
+        # Check the relation between family size and having a shared ticket
+        dataset["shared_ticketT"] = dataset.shared_ticket.astype("int64")
+        g = sns.factorplot(x="FamilyS_g", y="shared_ticketT", data=dataset, kind="bar")
+        dataset.drop("shared_ticketT",axis=1,inplace=True)
+    """It seems that as a passenger had more family members, it is more likely that she/he had a shared ticket"""
+    return dataset
+
+    # Outlier detection - visualization
 def Box_plots(df,col):
     plt.figure(figsize=(10, 4))
     plt.title(f"Box Plot of {col}")
@@ -294,14 +330,14 @@ def detect_outliers(df):
 
 if __name__ == '__main__':
     # Load train data and preliminary examination
-    train = load_dataset(r"..\data\train.csv","train")
+    train, train_orig = load_dataset(r"..\data\train.csv","train")
     """from first examination of the train set, one may see that there are many nulls within Age and Cabin.
     The mean age is 28 and 50% of the passengers are between 20 to 38 years old. At least 75% of the passengers
     hadn't parents or children on board and at least 50% of the passengers hadn't siblings/spouse on board.
     The mean fare was 32.2 which is ~6% of the maximum fare, less than 25% paid fare of above the average."""
 
     # Load test data and preliminary examination
-    test = load_dataset(r"..\data\test.csv","test")
+    test, test_orig = load_dataset(r"..\data\test.csv","test")
     """from first examination of the test set, one may see that there are many nulls within Age and Cabin as seen
      in train set. Mean age is 30.27, a little bit higher than in train set. At least 75% of the passengers
     hadn't parents or children on board and at least 50% of the passengers hadn't siblings/spouse on board, like 
@@ -311,8 +347,16 @@ if __name__ == '__main__':
     # in order to solve our goal. The folowing function enable to examine and compare
     # distributions of survivors and non-survivors by visualization
     train = initial_visualiztion(train)
+
+    ## Feature Engineering
     # Add the new shared_ticket feature to the testset as well
     test = shared_ticket(test)
+    # Check if passenger that shared ticket didn't get cumulative  price
+    train = update_price(train, training=True)
+    test = update_price(test, training=False)
+
+    train = family_size(train, training=True)
+    test = family_size(test, training=False)
 
     ## Handling the missing data
     # Accurate assessment of the missing data
@@ -333,7 +377,8 @@ if __name__ == '__main__':
     # handle age missing data
     train, test = fill_missing_age_by_median(train,test)
 
-    # drop features with 25% or more missing values
+    # drop features with 25% or more missing values since trying to fill them won't be accurate enough
+    # and can lean to false prediction (we have only one in this dataset)
     train.drop(missing_vals[missing_vals['Train percent']>=0.25].index.to_list(), axis=1, inplace=True)
     test.drop(missing_vals[missing_vals['Test percent']>=0.25].index.to_list(), axis=1, inplace=True)
 
