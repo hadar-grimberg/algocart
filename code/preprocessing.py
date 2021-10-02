@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import normaltest
+from sklearn.model_selection import train_test_split
 import warnings
 warnings.filterwarnings(action="ignore")
 
@@ -22,7 +23,7 @@ def load_dataset(path,name):
     # load data and make the PassengerId as the index of the DataFrame
     data=pd.read_csv(path, index_col=0)
     data_orig = data.copy()
-    # convert the label, sex & embarked to categorical and Pclass to ordered categorical
+    # convert the label, sex & embarked to categorical
     if name == "train":
         data.Survived = data.Survived.astype('category')
     data.Sex = data.Sex.astype('category')
@@ -289,6 +290,20 @@ def family_size(dataset, training=True):
     """It seems that as a passenger had more family members, it is more likely that she/he had a shared ticket"""
     return dataset
 
+def prepare_data_to_model(dataset):
+    # Encode categorical features (that has more than 2 categories) for the model
+    dataset.Pclass = dataset.Pclass.astype(pd.CategoricalDtype(categories=[3, 2, 1], ordered=True))
+    cols = dataset[dataset.select_dtypes(include="category").columns.to_list()].apply(lambda x: len(x.unique())) > 2
+    cols = cols.index[cols].to_list()
+    dataset = pd.get_dummies(dataset, columns=cols)
+
+    # Modify the categorical (string) column types to integer.
+    # This is necessary since not all classifiers can handle string input.
+    for col in dataset.select_dtypes(exclude=np.number).columns.to_list():
+        dataset[col].cat.categories = [0, 1]
+        dataset[col]=dataset[col].astype("int")
+    return dataset
+
     # Outlier detection - visualization
 def Box_plots(df,col):
     plt.figure(figsize=(10, 4))
@@ -382,10 +397,14 @@ if __name__ == '__main__':
     train.drop(missing_vals[missing_vals['Train percent']>=0.25].index.to_list(), axis=1, inplace=True)
     test.drop(missing_vals[missing_vals['Test percent']>=0.25].index.to_list(), axis=1, inplace=True)
 
+    # Final preparation of the data before inserting into the model
+    train = prepare_data_to_model(train)
+    test = prepare_data_to_model(test)
 
-    # Join train and test datasets in order to clean both datasets at once and to obtain
-    # the same number of features during categorical conversion
-    dataset =  pd.concat(objs=[train, test], axis=0).reset_index(drop=True)
+    # split the train into train and validation sets
+    y = train["Survived"]
+    X = train.drop(labels=["Survived"], axis=1)
+    x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.25, random_state=0)
 
 
     # detect outliers for numerical features
