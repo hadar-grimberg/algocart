@@ -33,7 +33,7 @@ def import_data():
     x_val.drop(['SibSp', 'Parch', 'FamilyS'], axis=1, inplace=True)
     return x_train, x_val, y_train, y_val, test
 
-def model_selection(x_train, x_val, y_train, y_val):
+def model_select(x_train, y_train):
     # finding the best estimator from 14 classifiers
     random_state = 17
 
@@ -79,7 +79,7 @@ def model_selection(x_train, x_val, y_train, y_val):
 
     return classifiersTuning, namesTuning
 
-def hyperparameters_tuning(trial):
+def hyperparameters_tuning(trial, x_train, y_train, namesTuning):
     # find the best model with hyperparameters  tuning using optuna
     classifier_name = trial.suggest_categorical("classifier", namesTuning)
     ## pay attention that hyperparameters are specific for the obtained results
@@ -178,9 +178,9 @@ if __name__ == '__main__':
     # Load the preprocessed data
     x_train, x_val, y_train, y_val, test = import_data()
     # Select the best model and hyper-parameters
-    classifiersTuning, namesTuning = model_selection(x_train, x_val, y_train, y_val)
+    classifiersTuning, namesTuning = model_select(x_train, y_train)
     study = optuna.create_study(direction="maximize")
-    study.optimize(hyperparameters_tuning, n_trials=500)
+    study.optimize(lambda trial: hyperparameters_tuning(trial, x_train, y_train, namesTuning) , n_trials=500)
     print(study.best_trial)
     # get the best hyper pameters for each model and retrain with the entaire dataset
     tr = study.trials_dataframe()
