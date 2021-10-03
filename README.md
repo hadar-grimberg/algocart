@@ -29,10 +29,10 @@ under the /api folder you can find code that relates to the api
 - app.py is the code to create the api
 - controller.py is a script that used to test the api
 
-## How to
-- First you need to clone the repository by 'git clone https://github.com/hadar-grimberg/algocart.git'
-- Second, install the requirements by 'pip install -r /path/to/requirements.txt'
-- Third, in the root directory of the repository, run python api/app.py
+## How t
+- First you need to clone the repository by `git clone https://github.com/hadar-grimberg/algocart.git`
+- Second, install the requirements by `pip install -r /path/to/requirements.txt`
+- Third, in the root directory of the repository, run `python api/app.py`
 
 Now you can request for prediction, just send the passenger details to the server and you will get a prediction whether s.he survived or not.
 The request pattern is:
