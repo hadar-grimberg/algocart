@@ -29,7 +29,7 @@ under the /api folder you can find code that relates to the api
 - app.py is the code to create the api
 - controller.py is a script that used to test the api
 
-## How t
+## How to
 - First you need to clone the repository by `git clone https://github.com/hadar-grimberg/algocart.git`
 - Second, install the requirements by `pip install -r /path/to/requirements.txt`
 - Third, in the root directory of the repository, run `python api/app.py`
