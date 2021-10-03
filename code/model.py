@@ -32,7 +32,7 @@ class titanicModel(object):
         full = pd.concat([train, test, new_data], axis=0)
         full=data_prepare(full)
         # full.drop("Survived", axis=1, inplace=True)
-        return full.iloc[[-17]]
+        return full.iloc[[-1]]
 
     def predict_proba(self, X):
         """Returns probability for the binary class '1' in a numpy array

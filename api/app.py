@@ -30,16 +30,21 @@ app = Flask("will-they-survive")
 def hello():
     return jsonify("hello from ML API of Titanic data!")
 
-@app.route("/predictions", methods=["GET"])
+# The API for prediction
+@app.route("/will-they-survive", methods=["GET"])
 def predictions():
+    #load the model
     clf_path = '../models/TitanicClassifier.pkl'
     with open(clf_path, 'rb') as f:
         Cmodel = titanicModel(pickle.load(f))
-    # df = pd.read_json('data.json')
+        #load json
     data = request.get_json()
-    df=pd.DataFrame(data['data'])
+    if len(data.keys())==1:
+        df = pd.DataFrame(data["data"])
+    else:
+        df = pd.read_json(json.dumps(data))
+        # select the columns that are necessary for the model
     data_all_x_cols = cols
-    loaded_model = pickle.load(open('../models/TitanicClassifier.pkl', 'rb'))
     try:
         preprocessed_df=Cmodel.prepare(df)
     except:
@@ -49,9 +54,11 @@ def predictions():
     except:
         return jsonify("Error occured while processing your data into our model!")
     print("done")
-    response={'data':[],'prediction_label':{'survived':int(1),'not survived':int(0)}}
-    response['data']=list(predictions)
-    return make_response(jsonify(response),200)
+    response={'data':[],'prediction_label':{1: 'survived',0: 'not survived'}}
+    response['data']=int(predictions)
+    # with open("../logs/log.log",'w') as f:
+    #     f.write(json.dumps(response['prediction_label'][response["data"]]))
+    return make_response(jsonify(response['prediction_label'][response["data"]]),200)
 
 if __name__ == '__main__':
-        app.run(debug=True)
+        app.run(host='0.0.0.0', port=8080)

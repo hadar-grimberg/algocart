@@ -10,6 +10,8 @@ import pandas as pd
 import numpy as np
 import json
 
+
+"""File to check whether the will-they-survive API is working"""
 #reading test data
 data=pd.read_csv('../data/raw/test.csv')
 #converting it into dictionary
@@ -24,7 +26,7 @@ headers = {
 }
 
 #making the api request
-r=requests.get(url='http://127.0.0.1:5000//predictions',headers=headers,data=json.dumps(data_json))
+r=requests.get(url='http://localhost:8080//will-they-survive',headers=headers,data=json.dumps(data_json))
 
 #getting the json data out
 data=r.json()
