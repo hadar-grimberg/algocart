@@ -19,9 +19,8 @@ pd.set_option('display.max_columns', 500)
 pd.options.display.float_format = '{:,.2f}'.format
 
 
-def load_dataset(path,name):
+def load_dataset(data,name):
     # load data and make the PassengerId as the index of the DataFrame
-    data=pd.read_csv(path, index_col=0)
     data_orig = data.copy()
     # convert the label, sex & embarked to categorical
     if name == "train":
@@ -342,17 +341,34 @@ def detect_outliers(df):
 # print(train.isnull().sum())
 # print(test.info())
 
+def data_prepare(dataset):
+    dataset, dataset_orig = load_dataset(dataset, "train")
+    # Add the new shared_ticket feature to the testset as well
+    dataset = shared_ticket(dataset)
+    # Check if passenger that shared ticket didn't get cumulative  price
+    dataset = update_price(dataset, training=True)
+
+    dataset = family_size(dataset, training=True)
+    # drop similar coloumns ('SibSp', 'Parch', 'FamilyS' engineered to 'FamilyS_g_Single',
+    # 'FamilyS_g_OneFM', 'FamilyS_g_SmallF', 'FamilyS_g_MedF')
+    dataset.drop(['SibSp', 'Parch', 'FamilyS','Name', 'Cabin'], axis=1, inplace=True)
+    # Encode the categorical features
+    dataset = prepare_data_to_model(dataset)
+    return dataset
+
 
 if __name__ == '__main__':
     # Load train data and preliminary examination
-    train, train_orig = load_dataset(r"..\data\raw\train.csv","train")
+    train = pd.read_csv(r"..\data\raw\train.csv", index_col=0)
+    train, train_orig = load_dataset(train,"train")
     """from first examination of the train set, one may see that there are many nulls within Age and Cabin.
     The mean age is 28 and 50% of the passengers are between 20 to 38 years old. At least 75% of the passengers
     hadn't parents or children on board and at least 50% of the passengers hadn't siblings/spouse on board.
     The mean fare was 32.2 which is ~6% of the maximum fare, less than 25% paid fare of above the average."""
 
     # Load test data and preliminary examination
-    test, test_orig = load_dataset(r"..\data\raw\test.csv","test")
+    test = pd.read_csv(r"..\data\raw\test.csv", index_col=0)
+    test, test_orig = load_dataset(test,"test")
     """from first examination of the test set, one may see that there are many nulls within Age and Cabin as seen
      in train set. Mean age is 30.27, a little bit higher than in train set. At least 75% of the passengers
     hadn't parents or children on board and at least 50% of the passengers hadn't siblings/spouse on board, like 
