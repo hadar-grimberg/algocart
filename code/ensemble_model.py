@@ -20,7 +20,7 @@ from sklearn.ensemble import VotingClassifier
 from model import titanicModel
 
 
-def ensamble(models):
+def ensemble(models):
     # voting classifier to combine the predictions combining from the 5 classifiers.
     classifier = VotingClassifier(estimators=[(str(models[0]).split("(")[0], models[0]),
                 (str(models[1]).split("(")[0], models[1]), (str(models[2]).split("(")[0], models[2]),
@@ -42,7 +42,7 @@ if __name__ == '__main__':
     tr_best = tr[idx]
     models = retrain(tr_best, x_train, x_val, y_train, y_val)
     # combine the predictions of 5 models into a voting classifier
-    classifier = ensamble(models)
+    classifier = ensemble(models)
 
     # upload the model into an object and save it
     theModel = titanicModel(classifier, x_train, y_train)
