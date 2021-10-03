@@ -17,7 +17,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier, ExtraTreesClassifier, VotingClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis, LinearDiscriminantAnalysis
-from sklearn.model_selection import GridSearchCV, cross_val_score, StratifiedKFold, learning_curve
+from sklearn.model_selection import cross_val_score, StratifiedKFold
 import optuna
 
 
@@ -182,9 +182,8 @@ if __name__ == '__main__':
     study = optuna.create_study(direction="maximize")
     study.optimize(hyperparameters_tuning, n_trials=500)
     print(study.best_trial)
+    # get the best hyper pameters for each model and retrain with the entaire dataset
     tr = study.trials_dataframe()
     idx = tr.groupby(['params_classifier'])['value'].transform(max) == tr['value']
     tr_best = tr[idx]
-
-    # get the best hyper pameters for each model and retrain with the entaire dataset
-    # hyperparameters_tuning(trial, x_train, y_train, namesTuning)
+    GBC, LR,  GP, LDA, AB, DT = retrain(tr_best, x_train, x_val, y_train, y_val)
