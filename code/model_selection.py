@@ -6,6 +6,7 @@ Hadar Grimberg
 """
 
 import pandas as pd
+import numpy as np
 import random
 from sklearn.neural_network import MLPClassifier
 from sklearn.neighbors import KNeighborsClassifier
@@ -171,7 +172,13 @@ def retrain(tr_best, x_train, x_val, y_train, y_val):
           criterion=Decision_Tree.loc[rand, "params_DT_crit"], max_depth=Decision_Tree.loc[rand, "params_DT_max_depth"])
     DT.fit(x_train, y_train)
     print(f"Decision Tree train accuracy: {DT.score(x_train, y_train):0.3f}, validation accuracy {DT.score(x_val, y_val):0.3f}")
-    return GBC, LR,  GP, LDA, AB, DT
+
+    # return the top 5 predictors:
+    models = [GBC, LR,  GP, LDA, AB, DT]
+    scores = np.array([GBC.score(x_val, y_val), LR.score(x_val, y_val), GP.score(x_val, y_val),
+            LDA.score(x_val, y_val), AB.score(x_val, y_val), DT.score(x_val, y_val)])
+    models.pop(np.argmin(scores))
+    return models
 
 
 if __name__ == '__main__':
@@ -186,4 +193,5 @@ if __name__ == '__main__':
     tr = study.trials_dataframe()
     idx = tr.groupby(['params_classifier'])['value'].transform(max) == tr['value']
     tr_best = tr[idx]
-    GBC, LR,  GP, LDA, AB, DT = retrain(tr_best, x_train, x_val, y_train, y_val)
+
+    models = retrain(tr_best, x_train, x_val, y_train, y_val)
