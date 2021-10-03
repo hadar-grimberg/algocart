@@ -45,9 +45,9 @@ if __name__ == '__main__':
     classifier = ensemble(models)
 
     # upload the model into an object and save it
-    theModel = titanicModel(classifier, x_train, y_train)
+    theModel = titanicModel(classifier)
     # train the final model
-    theModel.train()
+    theModel.train(x_train, y_train)
     # make predictions
     y_prob = theModel.predict_proba(x_val)
     y_pred = theModel.predict(x_val)
